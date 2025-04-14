@@ -2,25 +2,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
-import pandas as pd
 import logging
 import os
+import numpy as np
+from data import preprocess_input  # Import the updated preprocessing function
 
 # Set up basic logging configuration
 logging.basicConfig(level=logging.INFO)
 
-# Load model, encoder, and data from the pickle files and CSV
+# Load model and encoder from pickle files
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(BASE_DIR, 'housing_data', 'housing_demand_model.pkl')  # Path to model
 encoder_path = os.path.join(BASE_DIR, 'housing_data', 'label_encoder.pkl')  # Path to encoder
-csv_path = os.path.join(BASE_DIR, 'housing_data', 'Final_Demand_Prediction_With_Amenities.csv')  # Path to CSV
 
 # Load the trained model and label encoder
 model = joblib.load(model_path)
 label_encoder = joblib.load(encoder_path)
-
-# Read the data (used for reference or additional preprocessing)
-data = pd.read_csv(csv_path)
 
 app = FastAPI()
 
@@ -37,45 +34,21 @@ app.add_middleware(
 class PredictionRequest(BaseModel):
     bhk: int
     location: str
-    rera: str
+    rera: bool
     gym: str
     pool: str
-
-def encode_location(location: str) -> int:
-    location = location.strip().lower()
-    valid_locations = [loc.lower() for loc in label_encoder.classes_]
-    if location in valid_locations:
-        index = valid_locations.index(location)
-        return label_encoder.transform([label_encoder.classes_[index]])[0]
-    
-    # Log unknown location
-    logging.warning(f"Unknown location received: {location}")
-    return -1  # Unknown location fallback
 
 # POST route for predictions
 @app.post("/predict")
 def predict(req: PredictionRequest):
     try:
-        # Encode the location using the pre-trained label encoder
-        encoded_location = encode_location(req.location)
-        if encoded_location == -1:
+        # Preprocess input using the function from data.py
+        processed_input = preprocess_input(req.location, req.bhk, req.rera, req.gym, req.pool)
+        if processed_input[0][0] == -1:
             return {"error": "Unknown location. Please choose from valid options."}
 
-        # Convert Yes/No to binary for gym, pool, and rera
-        def to_binary(value: str):
-            return 1 if value.lower() == 'yes' else 0
-
-        # Create features vector based on the selected parameters
-        features = [
-            req.bhk,                     # BHK
-            encoded_location,            # Location (encoded)
-            to_binary(req.gym),          # Gym (Yes/No -> 1/0)
-            to_binary(req.pool),         # Pool (Yes/No -> 1/0)
-            to_binary(req.rera)          # RERA (Yes/No -> 1/0)
-        ]
-
         # Make prediction using the model
-        prediction = model.predict([features])
+        prediction = model.predict(processed_input)
         logging.info(f"Prediction successful for location: {req.location}, Score: {float(prediction[0])}")
 
         return {"prediction": float(prediction[0])}
