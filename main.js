@@ -1770,18 +1770,14 @@ document.addEventListener('DOMContentLoaded', function () {
     resultContainer.innerHTML = '<div style="color: #3b82f6;">⏳ Predicting...</div>';
 
     const payload = {
-      location: document.getElementById('location').value,
       bhk: parseInt(document.getElementById('bhk').value),
-      avg_price: parseFloat(document.getElementById('avgPrice').value),
+      location: document.getElementById('location').value,
+      rera: document.getElementById('rera').value,
       gym: document.getElementById('gym').value,
-      pool: document.getElementById('pool').value,
-      water: document.getElementById('water').value,
-      backup: document.getElementById('backup').value,
-      school: document.getElementById('school').value,
-      rera: document.getElementById('rera').value
+      pool: document.getElementById('pool').value
     };
 
-    fetch('http://127.0.0.1:8000/predict', {
+    fetch('https://housing-backend-4lag.onrender.com/predict', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1813,4 +1809,3 @@ document.addEventListener('DOMContentLoaded', function () {
       });
   });
 });
-  
