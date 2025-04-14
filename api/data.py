@@ -14,10 +14,7 @@ df_properties = pd.read_csv(properties_path)
 
 def preprocess_input(location: str, bhk: int, rera: bool, gym: str, pool: str):
     # Encode location using the label encoder
-    if location not in label_encoder.classes_:
-        return -1, "Unknown location. Please choose from valid options."  # Return error message
-
-    loc_encoded = label_encoder.transform([location])[0]
+    loc_encoded = label_encoder.transform([location])[0] if location in label_encoder.classes_ else -1
     
     # Convert RERA flag to binary (1/0)
     rera_val = 1 if rera else 0
@@ -26,14 +23,36 @@ def preprocess_input(location: str, bhk: int, rera: bool, gym: str, pool: str):
     gym_val = 1 if gym.lower() == "yes" else 0
     pool_val = 1 if pool.lower() == "yes" else 0
     
-    # Filter properties based on input parameters
-    filtered_properties = df_properties[
-        (df_properties['BHK'] == bhk) & 
-        (df_properties['Gym Available'] == gym_val) & 
-        (df_properties['Swimming Pool Available'] == pool_val)
+    # Start with the full dataset and apply filters progressively
+    filtered_properties = df_properties.copy()
+
+    # First, filter based on BHK, Gym, and Pool preference
+    filtered_properties = filtered_properties[
+        (filtered_properties['BHK'] == bhk) &
+        (filtered_properties['Gym Available'] == gym_val) &
+        (filtered_properties['Swimming Pool Available'] == pool_val)
     ]
     
-    # If location is valid, filter properties by location
-    filtered_properties = filtered_properties[filtered_properties['Location'] == loc_encoded]
-    
+    # If the location is valid, apply the location filter
+    if loc_encoded != -1:
+        filtered_properties = filtered_properties[filtered_properties['Location'] == loc_encoded]
+
+    # Relax filters progressively if no matching results
+    if filtered_properties.empty:
+        # Relax Gym and Pool preference first
+        filtered_properties = df_properties[
+            (df_properties['BHK'] == bhk)
+        ]
+        
+        if filtered_properties.empty:
+            # Relax BHK preference
+            filtered_properties = df_properties[
+                (df_properties['Location'] == loc_encoded)
+            ]
+            
+            if filtered_properties.empty:
+                # Show top options across all locations if still no match
+                filtered_properties = df_properties.copy()
+
+    # Return filtered properties with relevant details (like name, location, price, etc.)
     return filtered_properties[['Society Name', 'Location', 'Price', 'Gym Available', 'Swimming Pool Available', 'Star Rating', 'Estimated Rent']]
