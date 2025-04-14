@@ -3,24 +3,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
 import logging
 import os
 
 # Set up basic logging configuration
 logging.basicConfig(level=logging.INFO)
 
-# Load model and data
+# Load model, encoder, and data from the pickle files and CSV
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(BASE_DIR, 'housing_data', 'housing_demand_model.h5')
-csv_path = os.path.join(BASE_DIR, 'housing_data', 'Final_Demand_Prediction_With_Amenities.csv')
+model_path = os.path.join(BASE_DIR, 'housing_data', 'housing_demand_model.pkl')  # Path to model
+encoder_path = os.path.join(BASE_DIR, 'housing_data', 'label_encoder.pkl')  # Path to encoder
+csv_path = os.path.join(BASE_DIR, 'housing_data', 'Final_Demand_Prediction_With_Amenities.csv')  # Path to CSV
 
+# Load the trained model and label encoder
 model = joblib.load(model_path)
-data = pd.read_csv(csv_path)
+label_encoder = joblib.load(encoder_path)
 
-# Fit label encoder from training data
-label_encoder = LabelEncoder()
-data['Location'] = label_encoder.fit_transform(data['Location'])
+# Read the data (used for reference or additional preprocessing)
+data = pd.read_csv(csv_path)
 
 app = FastAPI()
 
