@@ -5,19 +5,22 @@ import joblib
 import logging
 import os
 import numpy as np
-from data import preprocess_input  # Import the updated preprocessing function
+import pandas as pd
 
 # Set up basic logging configuration
 logging.basicConfig(level=logging.INFO)
 
-# Load model and encoder from pickle files
+# Load the label encoder and model from pickle files
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(BASE_DIR, 'housing_data', 'housing_demand_model.pkl')  # Path to model
 encoder_path = os.path.join(BASE_DIR, 'housing_data', 'label_encoder.pkl')  # Path to encoder
+properties_path = r'C:\Users\aryan\Downloads\CEP_3\api\housing_data\Final_Demand_Prediction_With_Amenities.csv'  # Path to CSV
 
-# Load the trained model and label encoder
 model = joblib.load(model_path)
 label_encoder = joblib.load(encoder_path)
+
+# Load the properties data (make sure to load it once to avoid loading it repeatedly)
+df_properties = pd.read_csv(properties_path)
 
 app = FastAPI()
 
@@ -43,15 +46,36 @@ class PredictionRequest(BaseModel):
 def predict(req: PredictionRequest):
     try:
         # Preprocess input using the function from data.py
-        processed_input = preprocess_input(req.location, req.bhk, req.rera, req.gym, req.pool)
-        if processed_input[0][0] == -1:
-            return {"error": "Unknown location. Please choose from valid options."}
+        loc_encoded = label_encoder.transform([req.location])[0] if req.location in label_encoder.classes_ else -1
+        
+        # Convert RERA flag to binary (1/0)
+        rera_val = 1 if req.rera else 0
+        
+        # Convert Gym and Pool to binary (1/0)
+        gym_val = 1 if req.gym.lower() == "yes" else 0
+        pool_val = 1 if req.pool.lower() == "yes" else 0
+        
+        # Filter properties based on input parameters
+        filtered_properties = df_properties[
+            (df_properties['BHK'] == req.bhk) &
+            (df_properties['Gym Available'] == gym_val) &
+            (df_properties['Swimming Pool Available'] == pool_val)
+        ]
+        
+        # If location is valid, filter properties by location
+        if loc_encoded != -1:
+            filtered_properties = filtered_properties[filtered_properties['Location'] == loc_encoded]
+        
+        # Return filtered properties with relevant details (like name, location, price, etc.)
+        result = filtered_properties[['Society Name', 'Location', 'Price', 'Gym Available', 'Swimming Pool Available', 'Star Rating', 'Estimated Rent']]
 
-        # Make prediction using the model
-        prediction = model.predict(processed_input)
-        logging.info(f"Prediction successful for location: {req.location}, Score: {float(prediction[0])}")
+        # Check if any properties were found
+        if result.empty:
+            return {"error": "No matching properties found."}
 
-        return {"prediction": float(prediction[0])}
-
+        # Return results as a list of dictionaries for easy frontend processing
+        return {"properties": result.to_dict(orient="records")}
+    
     except Exception as e:
+        logging.error(f"Error: {str(e)}")
         return {"error": str(e)}
