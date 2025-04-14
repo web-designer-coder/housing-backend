@@ -1,23 +1,22 @@
 import numpy as np
+import joblib
+import os
 
-# Dummy encoding for simplicity (adjust according to your model's training)
-locations = {
-    "Mumbai, Maharashtra": 0,
-    "Delhi, Delhi": 1,
-    "Bangalore, Karnataka": 2,
-    "Hyderabad, Telangana": 3,
-    "Chennai, Tamil Nadu": 4,
-    "Kolkata, West Bengal": 5,
-    "Pune, Maharashtra": 6,
-    "Ahmedabad, Gujarat": 7,
-    "Jaipur, Rajasthan": 8,
-    "Lucknow, Uttar Pradesh": 9,
-    "Goa": 10,
-    "Gurgaon, Haryana": 11,
-    "Noida, Uttar Pradesh": 12
-}
+# Load the label encoder (since it's saved as a pickle file)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+encoder_path = os.path.join(BASE_DIR, 'housing_data', 'label_encoder.pkl')
+label_encoder = joblib.load(encoder_path)
 
-def preprocess_input(location: str, bhk: int, price: float, rera: bool):
-    loc_encoded = locations.get(location, -1)
+def preprocess_input(location: str, bhk: int, rera: bool, gym: str, pool: str):
+    # Encode location using the label encoder
+    loc_encoded = label_encoder.transform([location])[0] if location in label_encoder.classes_ else -1
+    
+    # Convert RERA flag to binary (1/0)
     rera_val = 1 if rera else 0
-    return np.array([[loc_encoded, bhk, price, rera_val]])
+    
+    # Convert Gym and Pool to binary (1/0)
+    gym_val = 1 if gym.lower() == "yes" else 0
+    pool_val = 1 if pool.lower() == "yes" else 0
+    
+    # Return the processed input as a numpy array
+    return np.array([[loc_encoded, bhk, rera_val, gym_val, pool_val]])
