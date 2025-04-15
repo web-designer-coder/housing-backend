@@ -1369,37 +1369,33 @@ document.addEventListener('DOMContentLoaded', function () {
     // Clear previous results and show loading spinner
     resultContainer.innerHTML = '<div style="color: #3b82f6;">⏳ Fetching results...</div>';
 
-    let rawBhk = document.getElementById("bhk").value;
-    let formattedBhk = null;
+    const rawBhk = document.getElementById("bhk").value;  // Get the selected BHK value (e.g., "1BHK", "2BHK")
+    const bhkValue = parseInt(rawBhk);  // Extract the integer value directly
 
-    try {
-      formattedBhk = validateBHKFormat(rawBhk);
-    } catch (e) {
+    if (isNaN(bhkValue) || bhkValue < 1 || bhkValue > 5) {
       resultContainer.innerHTML = `<div style="color: red;">❌ Please select a valid BHK value (1–5).</div>`;
       return;
     }
 
     const payload = {
-      bhk: parseInt(document.getElementById("bhk").value),
+      bhk: bhkValue,  // Directly use the integer value
       location: document.getElementById("location").value.trim(),
-      rera: document.getElementById("rera").value === "Yes",     // returns true/false
-      gym: document.getElementById("gym").value,                 // "Yes" or "No"
-      pool: document.getElementById("pool").value                // "Yes" or "No"
+      rera: document.getElementById("rera").value === "Yes",  // returns true/false
+      gym: document.getElementById("gym").value,  // "Yes" or "No"
+      pool: document.getElementById("pool").value  // "Yes" or "No"
     };
-    
 
     if (!["Yes", "No"].includes(payload.gym)) {
       resultContainer.innerHTML = `<div style="color: red;">❌ Please choose 'Yes' or 'No' for Gym.</div>`;
       return;
     }
-    
+
     if (!["Yes", "No"].includes(payload.pool)) {
       resultContainer.innerHTML = `<div style="color: red;">❌ Please choose 'Yes' or 'No' for Pool.</div>`;
       return;
     }
-    
 
-    // ✅ FIXED fetch() call here:
+    // ✅ Fixed fetch() call here:
     fetch("https://housing-backend-4lag.onrender.com/predict", {
       method: 'POST',
       headers: {
@@ -1446,4 +1442,3 @@ document.addEventListener('DOMContentLoaded', function () {
       });
   });
 });
-
